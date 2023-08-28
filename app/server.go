@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
 )
@@ -21,16 +22,21 @@ func main() {
 	}
 	defer conn.Close()
 
-	req := make([]byte, 1024)
-	_, err = conn.Read(req)
-	if err != nil {
-		fmt.Println("Error handling request: ", err.Error())
-		os.Exit(1)
-	}
+	for {
+		req := make([]byte, 1024)
+		_, err = conn.Read(req)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			fmt.Println("Error handling request: ", err.Error())
+			os.Exit(1)
+		}
 
-	_, err = conn.Write([]byte("+PONG\r\n"))
-	if err != nil {
-		fmt.Println("Error serving response: ", err.Error())
-		os.Exit(1)
+		_, err = conn.Write([]byte("+PONG\r\n"))
+		if err != nil {
+			fmt.Println("Error serving response: ", err.Error())
+			os.Exit(1)
+		}
 	}
 }
