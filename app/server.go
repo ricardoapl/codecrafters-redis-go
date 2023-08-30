@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -11,9 +13,7 @@ func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
 	for {
-		req := make([]byte, 1024)
-
-		_, err := conn.Read(req)
+		r, err := Deserialize(bufio.NewReader(conn))
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -22,10 +22,20 @@ func handleConnection(conn net.Conn) {
 			os.Exit(1)
 		}
 
-		_, err = conn.Write([]byte("+PONG\r\n"))
-		if err != nil {
-			fmt.Println("Error writing to client: ", err.Error())
-			os.Exit(1)
+		command := r.Elements[0].Value
+		args := [][]byte{}
+		for _, element := range r.Elements[1:] {
+			args = append(args, element.Value)
+		}
+
+		switch string(command) {
+		case "ping":
+			conn.Write([]byte("+PONG\r\n"))
+		case "echo":
+			data := bytes.Join(args, []byte(" "))
+			conn.Write([]byte(fmt.Sprintf("$%d\r\n%s\r\n", len(data), data)))
+		default:
+			conn.Write([]byte(fmt.Sprintf("-ERR unknown command '%s'\r\n", command)))
 		}
 	}
 }
